@@ -10,7 +10,7 @@ command that produced it.
 | Detection | Image AUROC, pixel AUROC, PRO, latency | `scripts/train_vision.py` |
 | Retrieval | precision@3, hit-rate@3, MRR, vs. measured ceiling | `scripts/eval_retrieval.py`, `scripts/retrieval_ceiling.py` |
 | Analysis | Citation grounding, risk agreement, retrieval ablation | `scripts/eval_analysis.py` |
-| End-to-end | Per-stage latency, throughput, retrieval ablation | Phase 5+ |
+| End-to-end | Interrupt durability, escalation, audit completeness | `tests/test_orchestrator.py`, `mavia` CLI |
 | Governance | Chain integrity, audit completeness | `mavia audit verify`, `tests/test_audit.py` |
 
 ---
@@ -285,9 +285,82 @@ The system prompt is fixed across every inspection and marked
 `cache_control: ephemeral`, so a line running thousands of units pays for it once
 per cache window rather than once per part.
 
-## 4. End-to-end
+## 4. End-to-end orchestration
 
-_Phase 5+._
+**Reproduce:**
+```bash
+uv run mavia inspect data/mvtec_ad/bottle/test/broken_large/001.png
+uv run mavia pending
+uv run mavia approve <inspection_id> --approver you@plant --rationale "..."
+uv run mavia audit verify
+```
+
+### 4.1 The property that makes this an agent
+
+A high-risk inspection calls LangGraph's `interrupt()`, which suspends the graph
+at a checkpoint written to SQLite. Demonstrated across **three separate OS
+processes**:
+
+| Process | Command | Result |
+|---|---|---|
+| 1 | `mavia inspect …/broken_large/001.png` | Suspended — `risk_level=CRITICAL; anomaly_score=0.820 >= 0.75` |
+| 2 | `mavia pending` | Listed the waiting inspection with its reason |
+| 3 | `mavia approve insp_0738337ed95e --approver qa.lead@plant` | Resumed and completed |
+
+Total latency 54,366 ms — that figure spans the human's thinking time, which is
+the point. The process that started the inspection had exited before the
+decision was made.
+
+`tests/test_orchestrator.py::test_pending_approval_survives_losing_the_pipeline_object`
+asserts this directly: the first pipeline object is deleted after suspending, and
+a completely new one sharing only the checkpoint database resumes it.
+
+An agent permitted to stop a production line must be interruptible, and the
+interrupt must outlive the request that created it. That is the difference
+between this and a script with an `input()` call in the middle.
+
+### 4.2 Escalation policy
+
+Two independent signals, OR-ed:
+
+| Condition | Effect |
+|---|---|
+| `risk_level` ∈ {HIGH, CRITICAL} | Human review |
+| `anomaly_score >= MAVIA_HIGH_RISK_THRESHOLD` (0.75) | Human review |
+| Neither | Auto-proceed, still fully audited |
+
+Deliberately conservative: the two can disagree, and a disagreement escalates
+rather than resolves. A LOW-risk analysis on a 0.92 anomaly score still goes to a
+human, and the reason string records which signal fired.
+
+### 4.3 The gate fails closed
+
+Ten resume payload shapes are tested. Anything not recognisably an approval —
+`None`, `{}`, `42`, `"gibberish"` — is recorded as a **rejection**, and a
+rejected inspection reports `INCONCLUSIVE` rather than a confirmed verdict. A
+human-in-the-loop gate that fails open is not a gate.
+
+### 4.4 Audit completeness
+
+Auditing is structural: every node is wrapped by `_audited` before being added to
+the graph, so no node is responsible for logging itself and none can forget to.
+
+| Property | Result |
+|---|---|
+| Events per full inspection | 9 (start, 3× agent start/complete, approval, finalise) |
+| Chain intact after full run + approval | ✅ 17 entries verified across 3 processes |
+| Human decision recorded with approver and rationale | ✅ |
+| Node failure recorded, chain still valid | ✅ (`camera offline` test) |
+| Bulky fields excluded from hash payloads | ✅ (paths, pixel regions) |
+
+A failing node produces an audited, degraded inspection — not a traceback.
+
+### 4.5 Checkpoint serialisation
+
+LangGraph's default serialiser deserialises arbitrary types and warns that this
+will be blocked in a future release. MAVIA passes an explicit allowlist of its
+own state types instead. This keeps checkpoints loadable across upgrades and
+means a checkpoint database cannot smuggle an arbitrary class past the loader.
 
 ## 5. Governance
 

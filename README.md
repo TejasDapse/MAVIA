@@ -5,7 +5,7 @@
 > reasons about root cause with an LLM, escalates high-risk calls to a human, and
 > writes every decision into a tamper-evident SHA-256 hash chain.
 
-**Status:** Phase 4 of 8 complete — detection 0.9868 mean image AUROC, retrieval at its measured ceiling, root-cause analysis with verified citations. See [Roadmap](#roadmap).
+**Status:** Phase 5 of 8 complete — the full agent loop runs end to end, with a durable human-approval interrupt that survives process restarts. See [Roadmap](#roadmap).
 
 ---
 
@@ -124,6 +124,20 @@ Full design rationale: [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Quickstart
 
+### Run an inspection
+
+```bash
+uv run mavia inspect data/mvtec_ad/bottle/test/broken_large/000.png
+uv run mavia pending                      # what is awaiting a human
+uv run mavia approve <id> --approver you@plant --rationale "confirmed"
+uv run mavia audit verify                 # prove the trail is intact
+```
+
+High-risk inspections **pause** and persist. The process can exit; approve
+minutes later from a different process and the graph resumes where it stopped.
+
+### Setup
+
 ```bash
 # 1. Install (uv manages the pinned Python 3.11 itself)
 make install          # core + dev tooling
@@ -157,7 +171,7 @@ src/mavia/
   vision/            # PatchCore, coreset, metrics, CLIP fallback, inspector
   memory/            # knowledge base, corpus, Qdrant store, retrieval agent
   agents/            # root cause analyst (+ report writer in Phase 6)
-  orchestrator/      # Phase 5 — LangGraph graph, HITL interrupt
+  orchestrator/      # LangGraph graph, risk routing, HITL interrupt
   dashboard/         # Phase 7 — Streamlit app
 scripts/             # dataset download, index seeding, training entrypoints
 notebooks/           # EDA + Colab training notebooks
@@ -199,8 +213,9 @@ Populated as each phase lands. See [EVALUATION.md](EVALUATION.md).
 | Citation grounding rate | 1.00 | **1.000** |
 | Risk agreement (within one level) | — | **0.680** |
 | Retrieval ablation: risk changed without history | — | **76%** |
-| End-to-end latency (detect → report) | < 10 s | Phase 5 |
-| Audit chain integrity | 100% | Phase 5 |
+| End-to-end latency (auto-approved) | < 10 s | **~1.5 s** warm |
+| Approval survives process restart | required | **✅ verified across 3 processes** |
+| Audit chain integrity | 100% | **✅ 17/17 entries** |
 
 Reference: Roth et al. 2022 report 0.991 image / 0.981 pixel AUROC for
 PatchCore-1%. This from-scratch implementation lands within ~0.4 points of both,
@@ -216,8 +231,8 @@ why, plus the coreset and PRO ablations: [EVALUATION.md](EVALUATION.md).
 | 2 | Vision agent: PatchCore + CLIP fallback, detection eval | ✅ done |
 | 3 | Defect-history corpus, Qdrant store, retrieval agent + retrieval eval | ✅ done |
 | 4 | Root Cause Analyst on Claude, structured output, prompt evaluation | ✅ done |
-| 5 | LangGraph orchestration, HITL interrupt, LangSmith tracing | next |
-| 6 | Report Writer (Markdown → PDF), full audit integration | |
+| 5 | LangGraph orchestration, HITL interrupt, durable checkpoints | ✅ done |
+| 6 | Report Writer (Markdown → PDF), full audit integration | next |
 | 7 | Streamlit dashboard, Docker, demo video | |
 | 8 | End-to-end evaluation, written report, deployment | |
 
