@@ -21,7 +21,7 @@ class Settings(BaseSettings):
 
     # --- LLM ---
     anthropic_api_key: SecretStr | None = Field(default=None, alias="ANTHROPIC_API_KEY")
-    llm_model: str = "claude-sonnet-5"
+    llm_model: str = "claude-opus-5"
     llm_max_tokens: int = 2048
 
     # --- Vector memory ---

@@ -5,7 +5,7 @@
 > reasons about root cause with an LLM, escalates high-risk calls to a human, and
 > writes every decision into a tamper-evident SHA-256 hash chain.
 
-**Status:** Phase 3 of 8 complete — detection at 0.9868 mean image AUROC; retrieval at the measured information ceiling. See [Roadmap](#roadmap).
+**Status:** Phase 4 of 8 complete — detection 0.9868 mean image AUROC, retrieval at its measured ceiling, root-cause analysis with verified citations. See [Roadmap](#roadmap).
 
 ---
 
@@ -113,7 +113,7 @@ Full design rationale: [ARCHITECTURE.md](ARCHITECTURE.md).
 | Anomaly detection | PatchCore, implemented from scratch on PyTorch |
 | Zero-shot vision | open_clip (ViT-B-32) |
 | Agent orchestration | LangGraph (stateful graph, `interrupt` for HITL, SQLite checkpointer) |
-| LLM | Claude (`claude-sonnet-5`) via the Anthropic SDK |
+| LLM | Claude (`claude-opus-5`) via the Anthropic SDK |
 | Vector memory | Qdrant (embedded on-disk by default, server/cloud optional) |
 | Embeddings | sentence-transformers `all-MiniLM-L6-v2` |
 | Observability | structlog + LangSmith traces |
@@ -156,7 +156,7 @@ src/mavia/
   cli.py             # `mavia doctor`, `mavia audit verify|show`
   vision/            # PatchCore, coreset, metrics, CLIP fallback, inspector
   memory/            # knowledge base, corpus, Qdrant store, retrieval agent
-  agents/            # Phase 4 — analyst + report writer
+  agents/            # root cause analyst (+ report writer in Phase 6)
   orchestrator/      # Phase 5 — LangGraph graph, HITL interrupt
   dashboard/         # Phase 7 — Streamlit app
 scripts/             # dataset download, index seeding, training entrypoints
@@ -196,7 +196,9 @@ Populated as each phase lands. See [EVALUATION.md](EVALUATION.md).
 | Retrieval precision@3 | ceiling 0.449 | **0.4548** (hybrid) |
 | Retrieval hit-rate@3 | — | **0.6904** |
 | Retrieval latency (warm) | — | **9 ms** |
-| Root-cause report factual grounding | — | Phase 4 |
+| Citation grounding rate | 1.00 | **1.000** |
+| Risk agreement (within one level) | — | **0.680** |
+| Retrieval ablation: risk changed without history | — | **76%** |
 | End-to-end latency (detect → report) | < 10 s | Phase 5 |
 | Audit chain integrity | 100% | Phase 5 |
 
@@ -213,8 +215,8 @@ why, plus the coreset and PRO ablations: [EVALUATION.md](EVALUATION.md).
 | 1 | Repo, config, typed schemas, audit hash chain, CLI, CI | ✅ done |
 | 2 | Vision agent: PatchCore + CLIP fallback, detection eval | ✅ done |
 | 3 | Defect-history corpus, Qdrant store, retrieval agent + retrieval eval | ✅ done |
-| 4 | Root Cause Analyst on Claude, structured output, prompt evaluation | next |
-| 5 | LangGraph orchestration, HITL interrupt, LangSmith tracing | |
+| 4 | Root Cause Analyst on Claude, structured output, prompt evaluation | ✅ done |
+| 5 | LangGraph orchestration, HITL interrupt, LangSmith tracing | next |
 | 6 | Report Writer (Markdown → PDF), full audit integration | |
 | 7 | Streamlit dashboard, Docker, demo video | |
 | 8 | End-to-end evaluation, written report, deployment | |

@@ -9,7 +9,7 @@ command that produced it.
 |---|---|---|
 | Detection | Image AUROC, pixel AUROC, PRO, latency | `scripts/train_vision.py` |
 | Retrieval | precision@3, hit-rate@3, MRR, vs. measured ceiling | `scripts/eval_retrieval.py`, `scripts/retrieval_ceiling.py` |
-| Analysis | Citation grounding rate, risk-level agreement | Phase 4 |
+| Analysis | Citation grounding, risk agreement, retrieval ablation | `scripts/eval_analysis.py` |
 | End-to-end | Per-stage latency, throughput, retrieval ablation | Phase 5+ |
 | Governance | Chain integrity, audit completeness | `mavia audit verify`, `tests/test_audit.py` |
 
@@ -212,7 +212,78 @@ about field accuracy on a real production line.
 
 ## 3. Root-cause analysis
 
-_Phase 4._
+**Reproduce:** `uv run python scripts/eval_analysis.py --samples 25`
+
+25 defective images sampled across all categories, run through the full
+Vision → Retrieval → Analyst chain. Ground truth is the image's directory name,
+which the pipeline never sees.
+
+### 3.1 What is measured, and why these things
+
+| Metric | Result (fallback path) | What it catches |
+|---|---|---|
+| Citation grounding rate | **1.000** | Citing a `case_id` that was never retrieved — the specific failure that makes "grounded in history" untrue |
+| Share of analyses citing history | 1.000 | Silent ungrounded reasoning |
+| Risk exact agreement | 0.480 | Whether the risk level matches the defect actually present |
+| Risk within one level | 0.680 | Near-misses vs. wild disagreement |
+| **Risk under-called** | **0.280** | The safety-relevant direction: calling a defect *less* serious than it is |
+| Action specificity | 1.000 | "Investigate further" instead of a real intervention |
+| Mean latency | 0.04 ms | — |
+
+### 3.2 The retrieval ablation
+
+The same 25 images analysed twice — once with retrieved history, once with the
+history withheld:
+
+| | With history | Without history |
+|---|---|---|
+| Mean confidence | **0.436** | **0.100** |
+| Risk level changed | — | **76% of cases** |
+
+Memory is load-bearing, not decorative. Removing it changes the risk decision on
+three quarters of inspections and collapses confidence by 4×. This is the
+measurement that justifies Phase 3 existing at all.
+
+### 3.3 Honest reading of the risk numbers
+
+**These numbers describe the deterministic fallback path, not Claude.** No
+`ANTHROPIC_API_KEY` was configured when this was run, so the analyst used its
+rule-based path: copy the nearest retrieved case's recorded severity. That makes
+the ceiling explicit — fallback risk accuracy is bounded by retrieval accuracy:
+
+| | |
+|---|---|
+| Retrieval top-1 correct | 0.440 |
+| Risk exact agreement | 0.480 |
+
+The two track each other because the fallback *is* the retrieval result. When the
+retriever surfaces the wrong defect mode, the fallback inherits its severity. The
+28% under-call rate is the number that would matter on a real line, and it is
+reported rather than buried.
+
+The LLM path is expected to beat this, because it can weigh the detection
+evidence against several retrieved cases instead of copying the top one — but
+that is a hypothesis until measured, and it is not claimed here as a result.
+Re-run the same command with a key set to fill in the LLM column.
+
+### 3.4 Guardrails in the LLM path
+
+Three, all tested in `tests/test_analyst.py` with a stub client so they are
+verified deterministically rather than against a live model:
+
+1. **Structured output** via `client.messages.parse` into a Pydantic model.
+   `risk_level` is an enum because the orchestrator branches on it — free text
+   would put a regex in the control path.
+2. **Citations verified, not trusted.** Every cited `case_id` is checked against
+   what was actually retrieved. Invented ids are stripped, and a model that
+   invents one has its confidence capped at 0.5 for the whole analysis.
+3. **Degradation, not failure.** No key, or an API error, falls through to the
+   deterministic path at explicitly reduced confidence, labelled in
+   `model_name`. A QA line does not stop because a vendor is having an outage.
+
+The system prompt is fixed across every inspection and marked
+`cache_control: ephemeral`, so a line running thousands of units pays for it once
+per cache window rather than once per part.
 
 ## 4. End-to-end
 
