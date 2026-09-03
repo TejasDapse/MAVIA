@@ -1,0 +1,47 @@
+{
+  "dense only, no category filter": {
+    "precision@3": 0.393607305936073,
+    "recall@3": 0.11808219178082192,
+    "hit_rate@3": 0.6794520547945205,
+    "mrr": 0.5333333333333334,
+    "n_queries": 365.0
+  },
+  "dense only, category filter": {
+    "precision@3": 0.393607305936073,
+    "recall@3": 0.11808219178082192,
+    "hit_rate@3": 0.6794520547945205,
+    "mrr": 0.5333333333333334,
+    "n_queries": 365.0
+  },
+  "hybrid alpha=0.7 (dense/geometry)": {
+    "precision@3": 0.4547945205479452,
+    "recall@3": 0.13643835616438355,
+    "hit_rate@3": 0.6904109589041096,
+    "mrr": 0.552054794520548,
+    "n_queries": 365.0
+  },
+  "hybrid alpha=0.5 (dense/geometry)": {
+    "precision@3": 0.4529680365296803,
+    "recall@3": 0.1358904109589041,
+    "hit_rate@3": 0.684931506849315,
+    "mrr": 0.5502283105022832,
+    "n_queries": 365.0
+  },
+  "hybrid alpha=0.3 (dense/geometry)": {
+    "precision@3": 0.45388127853881277,
+    "recall@3": 0.13616438356164384,
+    "hit_rate@3": 0.6821917808219178,
+    "mrr": 0.5493150684931507,
+    "n_queries": 365.0
+  },
+  "hybrid alpha=0.0 (dense/geometry)": {
+    "precision@3": 0.45388127853881277,
+    "recall@3": 0.13616438356164384,
+    "hit_rate@3": 0.6821917808219178,
+    "mrr": 0.5506849315068493,
+    "n_queries": 365.0
+  },
+  "random_baseline_within_category": {
+    "precision": 0.2596031746031746
+  }
+}

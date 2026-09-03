@@ -1,0 +1,128 @@
+{
+  "top_k": 3,
+  "weighted_ceiling_precision": 0.4488606253312136,
+  "weighted_chance": 0.2165285032932092,
+  "weighted_ceiling_hit_rate": 0.7408585055643879,
+  "per_category": [
+    {
+      "category": "bottle",
+      "n_masks": 63,
+      "n_modes": 3,
+      "chance": 0.3333333333333333,
+      "ceiling_precision": 0.5026455026455027,
+      "ceiling_hit_rate": 0.8253968253968254
+    },
+    {
+      "category": "cable",
+      "n_masks": 92,
+      "n_modes": 8,
+      "chance": 0.125,
+      "ceiling_precision": 0.44565217391304346,
+      "ceiling_hit_rate": 0.7065217391304348
+    },
+    {
+      "category": "capsule",
+      "n_masks": 109,
+      "n_modes": 5,
+      "chance": 0.2,
+      "ceiling_precision": 0.41284403669724773,
+      "ceiling_hit_rate": 0.7155963302752294
+    },
+    {
+      "category": "carpet",
+      "n_masks": 89,
+      "n_modes": 5,
+      "chance": 0.2,
+      "ceiling_precision": 0.39700374531835203,
+      "ceiling_hit_rate": 0.7640449438202247
+    },
+    {
+      "category": "grid",
+      "n_masks": 57,
+      "n_modes": 5,
+      "chance": 0.2,
+      "ceiling_precision": 0.4269005847953216,
+      "ceiling_hit_rate": 0.7719298245614035
+    },
+    {
+      "category": "hazelnut",
+      "n_masks": 70,
+      "n_modes": 4,
+      "chance": 0.25,
+      "ceiling_precision": 0.5142857142857142,
+      "ceiling_hit_rate": 0.8285714285714286
+    },
+    {
+      "category": "leather",
+      "n_masks": 92,
+      "n_modes": 5,
+      "chance": 0.2,
+      "ceiling_precision": 0.4891304347826087,
+      "ceiling_hit_rate": 0.7608695652173914
+    },
+    {
+      "category": "metal_nut",
+      "n_masks": 93,
+      "n_modes": 4,
+      "chance": 0.25,
+      "ceiling_precision": 0.5842293906810037,
+      "ceiling_hit_rate": 0.8602150537634409
+    },
+    {
+      "category": "pill",
+      "n_masks": 141,
+      "n_modes": 7,
+      "chance": 0.14285714285714285,
+      "ceiling_precision": 0.44444444444444436,
+      "ceiling_hit_rate": 0.7304964539007093
+    },
+    {
+      "category": "screw",
+      "n_masks": 119,
+      "n_modes": 5,
+      "chance": 0.2,
+      "ceiling_precision": 0.29131652661064417,
+      "ceiling_hit_rate": 0.5714285714285714
+    },
+    {
+      "category": "tile",
+      "n_masks": 84,
+      "n_modes": 5,
+      "chance": 0.2,
+      "ceiling_precision": 0.4603174603174603,
+      "ceiling_hit_rate": 0.8214285714285714
+    },
+    {
+      "category": "toothbrush",
+      "n_masks": 30,
+      "n_modes": 1,
+      "chance": 1.0,
+      "ceiling_precision": 1.0,
+      "ceiling_hit_rate": 1.0
+    },
+    {
+      "category": "transistor",
+      "n_masks": 40,
+      "n_modes": 4,
+      "chance": 0.25,
+      "ceiling_precision": 0.5333333333333333,
+      "ceiling_hit_rate": 0.725
+    },
+    {
+      "category": "wood",
+      "n_masks": 60,
+      "n_modes": 5,
+      "chance": 0.2,
+      "ceiling_precision": 0.3555555555555555,
+      "ceiling_hit_rate": 0.6333333333333333
+    },
+    {
+      "category": "zipper",
+      "n_masks": 119,
+      "n_modes": 7,
+      "chance": 0.14285714285714285,
+      "ceiling_precision": 0.3641456582633053,
+      "ceiling_hit_rate": 0.6722689075630253
+    }
+  ]
+}

@@ -8,7 +8,7 @@ command that produced it.
 | Layer | Metrics | Where |
 |---|---|---|
 | Detection | Image AUROC, pixel AUROC, PRO, latency | `scripts/train_vision.py` |
-| Retrieval | precision@3, recall@3, MRR | Phase 3 |
+| Retrieval | precision@3, hit-rate@3, MRR, vs. measured ceiling | `scripts/eval_retrieval.py`, `scripts/retrieval_ceiling.py` |
 | Analysis | Citation grounding rate, risk-level agreement | Phase 4 |
 | End-to-end | Per-stage latency, throughput, retrieval ablation | Phase 5+ |
 | Governance | Chain integrity, audit completeness | `mavia audit verify`, `tests/test_audit.py` |
@@ -106,9 +106,109 @@ search: a 1% coreset holds only ~470–3,000 entries per category.
 
 ---
 
-## 2. Retrieval
+## 2. Retrieval — defect-history corpus
 
-_Phase 3._
+**Reproduce:**
+```bash
+uv run python scripts/build_memory.py --recreate   # build + index 730 cases
+uv run python scripts/retrieval_ceiling.py         # what is achievable at all
+uv run python scripts/eval_retrieval.py            # what we achieve
+```
+
+730 historical cases across all 73 defect modes. Defect *morphology* is measured
+from MVTec's real ground-truth masks; only the process narrative (root cause,
+corrective action) is synthesised, from a 73-entry manufacturing knowledge base.
+
+### 2.1 The ceiling comes first
+
+The retriever sees only what the vision agent can measure: product category and
+defect geometry. Before tuning anything, we measured what *any* retriever could
+achieve on that information — leave-one-out k-NN on the real per-mask features:
+
+| | precision@3 |
+|---|---|
+| Random within category | 0.217 |
+| **Oracle k-NN on real mask geometry (ceiling)** | **0.449** |
+
+The ceiling is 0.449, not 1.0, because several defect types of the same product
+are genuinely indistinguishable by geometry. `bottle/broken_large` covers
+11.7%±5.1 of the part and `bottle/contamination` covers 8.5%±5.5 — overlapping
+distributions. No embedding model or re-ranker can separate them, because the
+information is not present in what the vision agent measured.
+
+Every number below should be read against 0.449.
+
+### 2.2 Results
+
+| Configuration | precision@3 | hit-rate@3 | MRR |
+|---|---|---|---|
+| Random baseline | 0.217 | — | — |
+| Dense only, no category filter | 0.3936 | 0.6795 | 0.5333 |
+| Dense only, category filter | 0.3936 | 0.6795 | 0.5333 |
+| **Hybrid α=0.7 (dense + geometry)** | **0.4548** | **0.6904** | **0.5521** |
+| Hybrid α=0.5 | 0.4530 | 0.6849 | 0.5502 |
+| Hybrid α=0.3 | 0.4539 | 0.6822 | 0.5493 |
+| Hybrid α=0.0 (geometry only) | 0.4539 | 0.6822 | 0.5507 |
+| *Oracle ceiling* | *0.449* | *0.741* | — |
+
+Hybrid retrieval reaches the ceiling: **0.4548 against 0.449**, i.e. essentially
+all of the signal available in the observable features is being used. Dense
+retrieval alone recovers only 88% of it.
+
+### 2.3 Why hybrid re-ranking was needed
+
+Sentence embeddings encode *magnitude* badly. "covering 0.31%" and "covering
+11.70%" differ by one token and embed close together, though one is a speck and
+the other a shattered part. The geometry term restores that signal by comparing
+log-area, region count, and elongation directly.
+
+The α sweep is informative in a way that is worth stating plainly: **α=0.0 (pure
+geometry) performs as well as the hybrid.** The dense embedding contributes
+almost nothing beyond separating product categories — unsurprising, since the
+observation text is itself a rendering of the geometry. The honest conclusion is
+that this is a *structured* retrieval problem wearing semantic clothing, and the
+vector store earns its place through category separation and extensibility to
+richer future text, not through semantic magic.
+
+The category filter changes no metric, because the category name already sits in
+the embedded text (same-category similarity 0.99 vs 0.70 cross-category). It is
+retained as a hard guarantee against cross-product contamination rather than as
+an accuracy measure.
+
+### 2.4 Two measurement bugs found and fixed
+
+Both inflated the score while looking perfectly healthy — recorded here because
+the corrections matter more than the final number.
+
+| Version | precision@3 | Why it was wrong |
+|---|---|---|
+| Gaussian-sampled corpus, case-level split | 0.498 | Cases were drawn from a Gaussian fitted per defect mode, making the synthetic history **more separable than real defects are**. Scored *above* the true ceiling. |
+| Bootstrapped corpus, case-level split | 0.539 | Query and indexed cases could bootstrap the **same underlying mask**, so the retriever was rewarded for finding a duplicate of itself. |
+| **Bootstrapped corpus, mask-level split** | **0.394 → 0.455 hybrid** | Honest. Disjoint mask pools, real measurements. |
+
+The first version scored 0.498 against a ceiling of 0.449 — a result above the
+information-theoretic limit, which is how the bug was caught. Computing the
+ceiling before optimising is what made both failures visible; without it, 0.539
+would have looked like success.
+
+Both properties are now covered by tests
+(`test_split_produces_disjoint_sample_pools`,
+`test_generated_cases_bootstrap_real_measurements`).
+
+### 2.5 Latency
+
+| Stage | Time |
+|---|---|
+| Retrieval, warm | **9 ms** |
+| First call (embedding model load) | ~7.9 s, one-off |
+
+### 2.6 Honest limitation
+
+The corpus is synthesised. Morphology is real — measured from MVTec's masks — but
+no public dataset records why those specific samples failed, so root causes are
+drawn from standard failure modes for the relevant processes. These metrics
+therefore demonstrate that the retrieval *mechanism* works; they are not a claim
+about field accuracy on a real production line.
 
 ## 3. Root-cause analysis
 
@@ -131,7 +231,7 @@ _Phase 5+._
 
 ## Test suite
 
-48 tests: 42 unit (no dataset or model required, run in CI) and 6 integration
+61 unit tests (no dataset or model required, run in CI) plus 6 integration tests
 (need MVTec AD plus fitted memory banks, skipped automatically when absent).
 
 ```bash

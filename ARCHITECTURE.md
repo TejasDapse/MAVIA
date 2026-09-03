@@ -110,6 +110,29 @@ Qdrant runs embedded on-disk by default so the project has no Docker dependency 
 development; `MAVIA_QDRANT_URL` switches it to a server or Qdrant Cloud with no code
 change.
 
+Three decisions carry this agent's quality:
+
+* **Query and document text share one renderer.** `describe_observation` produces
+  both the stored record and the live query. Divergent phrasing would push their
+  embeddings apart for reasons unrelated to the defect.
+* **The embedded text contains only what the vision agent can see.** Defect type
+  and root cause live in the payload, never in the vector. Embedding them would
+  make the retrieval evaluation measure information the system does not have at
+  inference time.
+* **Retrieval is hybrid: dense + geometry.** Sentence embeddings encode magnitude
+  poorly — "0.31%" and "11.70%" embed close together despite being a speck and a
+  shattered part. A geometry term over log-area, region count and elongation
+  re-ranks the dense candidates. This lifted precision@3 from 0.394 to 0.455,
+  against a measured ceiling of 0.449.
+
+**Measure the ceiling before optimising.** The retriever sees only category and
+geometry, and several defect modes are genuinely indistinguishable on that basis
+(`bottle/broken_large` at 11.7%±5.1 vs `contamination` at 8.5%±5.5). An oracle
+k-NN on the real mask features reaches only 0.449 precision@3. Knowing that
+number first is what exposed two measurement bugs whose scores — 0.498 and 0.539
+— were *above the information-theoretic limit* and would otherwise have read as
+success. See EVALUATION.md §2.4.
+
 ### Agent 3 — Root Cause Analyst
 Input: `VisionResult` + `RetrievalResult`. Output: `RootCauseAnalysis`.
 

@@ -5,7 +5,7 @@
 > reasons about root cause with an LLM, escalates high-risk calls to a human, and
 > writes every decision into a tamper-evident SHA-256 hash chain.
 
-**Status:** Phase 2 of 8 complete — detection at 0.9868 mean image AUROC on MVTec AD. See [Roadmap](#roadmap).
+**Status:** Phase 3 of 8 complete — detection at 0.9868 mean image AUROC; retrieval at the measured information ceiling. See [Roadmap](#roadmap).
 
 ---
 
@@ -155,7 +155,7 @@ src/mavia/
   logging_setup.py   # structlog configuration
   cli.py             # `mavia doctor`, `mavia audit verify|show`
   vision/            # PatchCore, coreset, metrics, CLIP fallback, inspector
-  memory/            # Phase 3 — Qdrant store, embeddings, retrieval
+  memory/            # knowledge base, corpus, Qdrant store, retrieval agent
   agents/            # Phase 4 — analyst + report writer
   orchestrator/      # Phase 5 — LangGraph graph, HITL interrupt
   dashboard/         # Phase 7 — Streamlit app
@@ -193,7 +193,9 @@ Populated as each phase lands. See [EVALUATION.md](EVALUATION.md).
 | Pixel-level AUROC | > 0.97 | **0.9767** |
 | PRO | — | **0.8046** |
 | Detection latency | < 100 ms | **35.5 ms/image** (MPS) |
-| Retrieval precision@3 | > 0.80 | Phase 3 |
+| Retrieval precision@3 | ceiling 0.449 | **0.4548** (hybrid) |
+| Retrieval hit-rate@3 | — | **0.6904** |
+| Retrieval latency (warm) | — | **9 ms** |
 | Root-cause report factual grounding | — | Phase 4 |
 | End-to-end latency (detect → report) | < 10 s | Phase 5 |
 | Audit chain integrity | 100% | Phase 5 |
@@ -210,8 +212,8 @@ why, plus the coreset and PRO ablations: [EVALUATION.md](EVALUATION.md).
 |---|---|---|
 | 1 | Repo, config, typed schemas, audit hash chain, CLI, CI | ✅ done |
 | 2 | Vision agent: PatchCore + CLIP fallback, detection eval | ✅ done |
-| 3 | Defect-history corpus, Qdrant store, retrieval agent + retrieval eval | next |
-| 4 | Root Cause Analyst on Claude, structured output, prompt evaluation | |
+| 3 | Defect-history corpus, Qdrant store, retrieval agent + retrieval eval | ✅ done |
+| 4 | Root Cause Analyst on Claude, structured output, prompt evaluation | next |
 | 5 | LangGraph orchestration, HITL interrupt, LangSmith tracing | |
 | 6 | Report Writer (Markdown → PDF), full audit integration | |
 | 7 | Streamlit dashboard, Docker, demo video | |
