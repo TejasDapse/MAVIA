@@ -20,7 +20,7 @@ jobs:
         run: uv python install 3.11
 
       - name: Install dependencies
-        run: uv sync --extra vision --extra memory
+        run: uv sync --extra vision --extra memory --extra agents
 
       - name: Lint
         run: uv run ruff check src tests scripts
