@@ -32,7 +32,7 @@ import time
 from collections.abc import Callable
 from contextlib import suppress
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, TypeAlias, cast
 
 from langchain_core.runnables import RunnableConfig
 from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
@@ -84,7 +84,7 @@ CHECKPOINT_TYPES: tuple[type, ...] = (
 
 
 # LangGraph's StateGraph is generic over (state, context, input, output).
-InspectionGraph = StateGraph[InspectionState, None, InspectionState, InspectionState]
+InspectionGraph: TypeAlias = StateGraph[InspectionState, None, InspectionState, InspectionState]
 
 
 def _add_node(
