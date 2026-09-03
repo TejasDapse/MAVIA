@@ -76,6 +76,19 @@ mavia = "mavia.cli:app"
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+# On Linux (CI, containers) the default PyPI torch wheel bundles CUDA and is
+# ~2.5 GB, which nothing here needs - no gradients are computed anywhere. Pull
+# the CPU build there instead. macOS keeps the default wheel, which is the one
+# with MPS support.
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]
+torchvision = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/mavia"]
 
