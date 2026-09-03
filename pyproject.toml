@@ -1,0 +1,107 @@
+[project]
+name = "mavia"
+version = "0.1.0"
+description = "MAVIA - Multi-Agent Visual Inspection & Audit System for manufacturing QA"
+readme = "README.md"
+requires-python = ">=3.11,<3.13"
+license = { text = "MIT" }
+authors = [{ name = "Vidyesh Dapse" }]
+keywords = ["anomaly-detection", "agentic-ai", "manufacturing", "computer-vision", "rag", "langgraph"]
+
+dependencies = [
+    "pydantic>=2.9",
+    "pydantic-settings>=2.6",
+    "python-dotenv>=1.0",
+    "numpy>=1.26",
+    "pillow>=10.4",
+    "structlog>=24.4",
+    "typer>=0.15",
+    "rich>=13.9",
+    "pandas>=2.2",
+]
+
+[project.optional-dependencies]
+vision = [
+    "torch>=2.4",
+    "torchvision>=0.19",
+    "anomalib>=1.2",
+    "open-clip-torch>=2.30",
+    "opencv-python-headless>=4.10",
+    "scikit-learn>=1.5",
+]
+memory = [
+    "qdrant-client>=1.12",
+    "sentence-transformers>=3.3",
+]
+agents = [
+    "langgraph>=0.2.60",
+    "langgraph-checkpoint-sqlite>=2.0",
+    "langchain-core>=0.3",
+    "anthropic>=0.42",
+    "langsmith>=0.2",
+]
+report = [
+    "jinja2>=3.1",
+    "markdown>=3.7",
+    "weasyprint>=63.0",
+]
+dashboard = [
+    "streamlit>=1.41",
+    "plotly>=5.24",
+]
+eval = [
+    "scikit-learn>=1.5",
+    "matplotlib>=3.9",
+    "seaborn>=0.13",
+    "jupyter>=1.1",
+]
+all = [
+    "mavia[vision,memory,agents,report,dashboard,eval]",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "pytest-cov>=6.0",
+    "ruff>=0.8",
+    "mypy>=1.13",
+    "pre-commit>=4.0",
+]
+
+[project.scripts]
+mavia = "mavia.cli:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/mavia"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+ignore = ["B008", "RUF012"]
+
+[tool.mypy]
+python_version = "3.11"
+packages = ["mavia"]
+mypy_path = "src"
+ignore_missing_imports = true
+warn_unused_ignores = true
+disallow_untyped_defs = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q --strict-markers"
+markers = [
+    "slow: tests that load models or hit the network",
+    "integration: tests requiring external services (Qdrant, Anthropic API)",
+]
+
+[tool.coverage.run]
+source = ["src/mavia"]
