@@ -5,7 +5,7 @@
 > reasons about root cause with an LLM, escalates high-risk calls to a human, and
 > writes every decision into a tamper-evident SHA-256 hash chain.
 
-**Status:** Phase 1 of 8 — foundation complete. See [Roadmap](#roadmap).
+**Status:** Phase 2 of 8 complete — detection at 0.9868 mean image AUROC on MVTec AD. See [Roadmap](#roadmap).
 
 ---
 
@@ -52,10 +52,9 @@ MAVIA therefore uses the approach the benchmark was designed for:
 
 | Layer | Model | Why |
 |---|---|---|
-| Primary detector | **PatchCore** (anomalib) | ~99.1% image AUROC on MVTec AD; trains on defect-free images only; memory-bank approach needs no defect labels |
-| Efficiency variant | **EfficientAD** | Sub-millisecond inference class, for the throughput/latency comparison in the evaluation |
-| Unseen categories | **CLIP / WinCLIP zero-shot** | Handles product classes the memory bank has never seen, without retraining |
-| Localisation | Pixel-level anomaly maps → connected-component boxes | Gives the regions the report and dashboard cite as evidence |
+| Primary detector | **PatchCore**, implemented from scratch | Trains on defect-free images only; memory-bank approach needs no defect labels. Measured **0.9868** mean image AUROC here |
+| Unseen categories | **CLIP zero-shot** | Handles product classes the memory bank has never seen, without retraining — covers a new SKU on day one |
+| Localisation | Pixel anomaly maps → connected-component boxes | Gives the regions the report and dashboard cite as evidence |
 
 This is a stronger engineering story than "I fine-tuned YOLO": it is the correct method
 for the data, it reflects the real cold-start constraint in manufacturing, and it gives a
@@ -111,7 +110,7 @@ Full design rationale: [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Component | Choice |
 |---|---|
-| Anomaly detection | anomalib (PatchCore, EfficientAD), PyTorch |
+| Anomaly detection | PatchCore, implemented from scratch on PyTorch |
 | Zero-shot vision | open_clip (ViT-B-32) |
 | Agent orchestration | LangGraph (stateful graph, `interrupt` for HITL, SQLite checkpointer) |
 | LLM | Claude (`claude-sonnet-5`) via the Anthropic SDK |
@@ -155,7 +154,7 @@ src/mavia/
   audit.py           # SHA-256 hash-chain audit log + chain verification
   logging_setup.py   # structlog configuration
   cli.py             # `mavia doctor`, `mavia audit verify|show`
-  vision/            # Phase 2 — PatchCore / EfficientAD / CLIP
+  vision/            # PatchCore, coreset, metrics, CLIP fallback, inspector
   memory/            # Phase 3 — Qdrant store, embeddings, retrieval
   agents/            # Phase 4 — analyst + report writer
   orchestrator/      # Phase 5 — LangGraph graph, HITL interrupt
@@ -190,20 +189,28 @@ Populated as each phase lands. See [EVALUATION.md](EVALUATION.md).
 
 | Metric | Target | Measured |
 |---|---|---|
-| Image-level AUROC (MVTec AD, 15 categories) | > 0.98 | — |
-| Pixel-level AUROC | > 0.97 | — |
-| Retrieval precision@3 | > 0.80 | — |
-| Root-cause report factual grounding | — | — |
-| End-to-end latency (detect → report) | < 10 s | — |
-| Audit chain integrity | 100% | — |
+| Image-level AUROC (MVTec AD, 15 categories) | > 0.98 | **0.9868** |
+| Pixel-level AUROC | > 0.97 | **0.9767** |
+| PRO | — | **0.8046** |
+| Detection latency | < 100 ms | **35.5 ms/image** (MPS) |
+| Retrieval precision@3 | > 0.80 | Phase 3 |
+| Root-cause report factual grounding | — | Phase 4 |
+| End-to-end latency (detect → report) | < 10 s | Phase 5 |
+| Audit chain integrity | 100% | Phase 5 |
+
+Reference: Roth et al. 2022 report 0.991 image / 0.981 pixel AUROC for
+PatchCore-1%. This from-scratch implementation lands within ~0.4 points of both,
+without the paper's test-time augmentation or multi-scale ensembling. Five
+categories reach a perfect 1.0000. Full per-category table, the weakest cases and
+why, plus the coreset and PRO ablations: [EVALUATION.md](EVALUATION.md).
 
 ## Roadmap
 
 | Phase | Scope | Status |
 |---|---|---|
 | 1 | Repo, config, typed schemas, audit hash chain, CLI, CI | ✅ done |
-| 2 | Vision agent: PatchCore/EfficientAD training + CLIP fallback, detection eval | next |
-| 3 | Defect-history corpus, Qdrant store, retrieval agent + retrieval eval | |
+| 2 | Vision agent: PatchCore + CLIP fallback, detection eval | ✅ done |
+| 3 | Defect-history corpus, Qdrant store, retrieval agent + retrieval eval | next |
 | 4 | Root Cause Analyst on Claude, structured output, prompt evaluation | |
 | 5 | LangGraph orchestration, HITL interrupt, LangSmith tracing | |
 | 6 | Report Writer (Markdown → PDF), full audit integration | |

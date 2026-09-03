@@ -1,125 +1,168 @@
 #!/usr/bin/env python3
-"""Download and extract the MVTec AD benchmark into ``data/mvtec_ad``.
+"""Download MVTec AD and normalise it into the canonical benchmark layout.
+
+MVTec's own distribution requires registration, and the ``mydrive.ch`` link that
+anomalib historically used now returns 404. We therefore pull from an ungated
+Hugging Face mirror that carries the complete dataset (5,354 images + 1,258
+masks, matching the official counts) and reorganise it into the layout every
+MVTec AD paper and codebase assumes:
+
+    data/mvtec_ad/<category>/train/good/000.png
+    data/mvtec_ad/<category>/test/<defect>/000.png
+    data/mvtec_ad/<category>/ground_truth/<defect>/000_mask.png
 
 MVTec AD is released under CC BY-NC-SA 4.0 (research / non-commercial use).
 Source: https://www.mvtec.com/company/research/datasets/mvtec-ad
 
 Usage:
-    uv run python scripts/download_mvtec.py                 # full dataset (~4.9 GB)
-    uv run python scripts/download_mvtec.py --dry-run       # show what would happen
-    uv run python scripts/download_mvtec.py --no-verify     # skip checksum check
+    uv run python scripts/download_mvtec.py                    # all 15 categories
+    uv run python scripts/download_mvtec.py -c bottle -c tile  # a subset
+    uv run python scripts/download_mvtec.py --dry-run
 """
 
 from __future__ import annotations
 
 import argparse
-import hashlib
+import shutil
 import sys
-import tarfile
-import urllib.request
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_DEST = REPO_ROOT / "data" / "mvtec_ad"
 
-ARCHIVE_URL = (
-    "https://www.mydrive.ch/shares/38536/3830184030e49fe74747669442f0f282/"
-    "download/420938113-1629952094/mvtec_anomaly_detection.tar.xz"
-)
-ARCHIVE_SHA256 = "cf4313b13603bec67abb49ca959488f7eedce2a9f7795ec54446c649ac98cd3d"
+HF_REPO = "TheoM55/mvtec_anomaly_detection"
 
 CATEGORIES = [
     "bottle", "cable", "capsule", "carpet", "grid", "hazelnut", "leather",
     "metal_nut", "pill", "screw", "tile", "toothbrush", "transistor", "wood", "zipper",
 ]  # fmt: skip
 
-
-def _progress(block_num: int, block_size: int, total_size: int) -> None:
-    if total_size <= 0:
-        return
-    downloaded = block_num * block_size
-    pct = min(100.0, downloaded * 100 / total_size)
-    bar = "=" * int(pct // 2)
-    sys.stdout.write(
-        f"\r  [{bar:<50}] {pct:5.1f}%  ({downloaded / 1e9:.2f}/{total_size / 1e9:.2f} GB)"
-    )
-    sys.stdout.flush()
+# Official per-category image counts (train + test), used as an integrity check.
+EXPECTED_COUNTS = {
+    "bottle": (209, 83), "cable": (224, 150), "capsule": (219, 132),
+    "carpet": (280, 117), "grid": (264, 78), "hazelnut": (391, 110),
+    "leather": (245, 124), "metal_nut": (220, 115), "pill": (267, 167),
+    "screw": (320, 160), "tile": (230, 117), "toothbrush": (60, 42),
+    "transistor": (213, 100), "wood": (247, 79), "zipper": (240, 151),
+}  # fmt: skip
 
 
-def sha256_of(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
+def category_is_complete(dest: Path, category: str) -> bool:
+    """True when a category already has roughly the expected number of images."""
+    train_dir = dest / category / "train" / "good"
+    test_dir = dest / category / "test"
+    if not train_dir.is_dir() or not test_dir.is_dir():
+        return False
+    n_train = len(list(train_dir.glob("*.png")))
+    n_test = len(list(test_dir.rglob("*.png")))
+    exp_train, exp_test = EXPECTED_COUNTS[category]
+    return n_train == exp_train and n_test == exp_test
 
 
-def already_present(dest: Path) -> bool:
-    return all((dest / category / "train" / "good").is_dir() for category in CATEGORIES)
+def reorganise(cache_dir: Path, dest: Path, categories: list[str]) -> None:
+    """Move the mirror's split-first layout into the canonical category-first one."""
+    for category in categories:
+        # images/train/<cat>/good -> <cat>/train/good
+        # images/test/<cat>/<defect> -> <cat>/test/<defect>
+        for split in ("train", "test"):
+            src = cache_dir / "images" / split / category
+            if not src.is_dir():
+                continue
+            for defect_dir in sorted(src.iterdir()):
+                if not defect_dir.is_dir():
+                    continue
+                target = dest / category / split / defect_dir.name
+                target.mkdir(parents=True, exist_ok=True)
+                for image in defect_dir.glob("*.png"):
+                    shutil.copy2(image, target / image.name)
+
+        # masks/test/<cat>/<defect> -> <cat>/ground_truth/<defect>
+        mask_src = cache_dir / "masks" / "test" / category
+        if mask_src.is_dir():
+            for defect_dir in sorted(mask_src.iterdir()):
+                if not defect_dir.is_dir():
+                    continue
+                target = dest / category / "ground_truth" / defect_dir.name
+                target.mkdir(parents=True, exist_ok=True)
+                for mask in defect_dir.glob("*.png"):
+                    shutil.copy2(mask, target / mask.name)
+
+
+def verify(dest: Path, categories: list[str]) -> bool:
+    ok = True
+    print("\nIntegrity check (train / test images per category):")
+    for category in categories:
+        n_train = len(list((dest / category / "train" / "good").glob("*.png")))
+        n_test = len(list((dest / category / "test").rglob("*.png")))
+        n_mask = len(list((dest / category / "ground_truth").rglob("*.png")))
+        exp_train, exp_test = EXPECTED_COUNTS[category]
+        good = n_train == exp_train and n_test == exp_test
+        ok &= good
+        flag = "ok " if good else "BAD"
+        print(
+            f"  {flag} {category:<12} train {n_train:>4}/{exp_train:<4} "
+            f"test {n_test:>4}/{exp_test:<4} masks {n_mask:>4}"
+        )
+    return ok
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dest", type=Path, default=DEFAULT_DEST)
-    parser.add_argument("--no-verify", action="store_true", help="skip the SHA-256 check")
-    parser.add_argument("--keep-archive", action="store_true")
+    parser.add_argument(
+        "-c", "--category", action="append", dest="categories",
+        choices=CATEGORIES, help="Download only these categories (repeatable).",
+    )  # fmt: skip
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument(
+        "--keep-cache", action="store_true", help="Keep the raw HF snapshot after reorganising."
+    )
     args = parser.parse_args()
 
     dest: Path = args.dest
-    if already_present(dest):
-        print(f"MVTec AD already present at {dest} ({len(CATEGORIES)} categories). Nothing to do.")
-        return 0
+    categories: list[str] = args.categories or CATEGORIES
 
-    archive = dest.parent / "mvtec_anomaly_detection.tar.xz"
+    missing = [c for c in categories if not category_is_complete(dest, c)]
     print(f"Destination : {dest}")
-    print(f"Archive     : {archive}")
-    print(f"Source      : {ARCHIVE_URL}")
+    print(f"Source      : https://huggingface.co/datasets/{HF_REPO}")
     print("License     : CC BY-NC-SA 4.0 (non-commercial research use)")
+    print(f"Categories  : {len(categories)} requested, {len(missing)} missing")
+
+    if not missing:
+        print("\nAll requested categories already present. Nothing to do.")
+        return 0
     if args.dry_run:
-        print("\n--dry-run set, exiting without downloading.")
+        print(f"\n--dry-run set. Would download: {', '.join(missing)}")
         return 0
 
-    dest.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        from huggingface_hub import snapshot_download
+    except ImportError:
+        print("\nERROR: huggingface_hub is required. Run `uv sync`.", file=sys.stderr)
+        return 1
 
-    if not archive.exists():
-        print("\nDownloading (~4.9 GB, this takes a while)...")
-        urllib.request.urlretrieve(ARCHIVE_URL, archive, reporthook=_progress)
-        print()
-    else:
-        print("\nArchive already downloaded, reusing it.")
+    patterns = [f"images/*/{c}/**" for c in missing] + [f"masks/test/{c}/**" for c in missing]
 
-    if not args.no_verify:
-        print("Verifying checksum...")
-        actual = sha256_of(archive)
-        if actual != ARCHIVE_SHA256:
-            print(
-                f"  ERROR: checksum mismatch\n    expected {ARCHIVE_SHA256}\n    got      {actual}"
-            )
-            print(
-                "  Delete the archive and retry, or rerun with --no-verify if you trust the source."
-            )
-            return 1
-        print("  OK")
+    print(f"\nDownloading {len(missing)} categories (~5 GB for the full set)...")
+    cache_dir = Path(
+        snapshot_download(
+            repo_id=HF_REPO,
+            repo_type="dataset",
+            allow_patterns=patterns,
+            cache_dir=str(dest.parent / ".hf_cache"),
+        )
+    )
 
-    print(f"Extracting to {dest}...")
+    print(f"Reorganising into canonical MVTec layout at {dest}...")
     dest.mkdir(parents=True, exist_ok=True)
-    with tarfile.open(archive, "r:xz") as tar:
-        tar.extractall(dest, filter="data")
+    reorganise(cache_dir, dest, missing)
 
-    # The archive unpacks category folders directly; normalise a nested root if present.
-    nested = dest / "mvtec_anomaly_detection"
-    if nested.is_dir():
-        for child in nested.iterdir():
-            child.rename(dest / child.name)
-        nested.rmdir()
+    if not args.keep_cache:
+        shutil.rmtree(dest.parent / ".hf_cache", ignore_errors=True)
 
-    if not args.keep_archive:
-        archive.unlink(missing_ok=True)
-
-    found = [c for c in CATEGORIES if (dest / c).is_dir()]
-    print(f"Done. {len(found)}/{len(CATEGORIES)} categories available at {dest}")
-    return 0 if len(found) == len(CATEGORIES) else 1
+    ok = verify(dest, categories)
+    print("\nDone." if ok else "\nDone, but some counts do not match - see BAD rows above.")
+    return 0 if ok else 1
 
 
 if __name__ == "__main__":

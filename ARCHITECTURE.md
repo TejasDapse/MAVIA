@@ -47,9 +47,38 @@ an anomaly detection question.
 | Role | Model | Rationale |
 |---|---|---|
 | Primary | **PatchCore** | Builds a coreset memory bank of patch embeddings from defect-free images only. ~99.1% image AUROC on MVTec AD. No defect labels required — matches the real cold-start constraint. |
-| Efficiency comparison | **EfficientAD** | Student-teacher distillation, dramatically lower inference cost. Included so the evaluation can present an accuracy/latency Pareto curve rather than a single number. |
-| Unseen categories | **CLIP / WinCLIP zero-shot** | When a product category has no memory bank, fall back to language-prompted classification ("a photo of a damaged {object}" vs "a photo of a flawless {object}"). Keeps the system useful on day one for a new SKU. |
+| Unseen categories | **CLIP zero-shot** | When a product category has no memory bank, fall back to language-prompted classification ("a photo of a damaged {object}" vs "a photo of a flawless {object}"). Keeps the system useful on day one for a new SKU. |
 | Localisation | Threshold + connected components over the anomaly map | Converts the pixel heatmap into the discrete regions the report cites as evidence. |
+
+### 2.1 Implemented directly, not via anomalib
+
+PatchCore here is written from scratch (`src/mavia/vision/`, ~600 lines) rather
+than imported from anomalib. Three reasons:
+
+1. **Dependency weight.** anomalib pulls in PyTorch Lightning and a full training
+   framework. MAVIA computes no gradients anywhere — carrying a training
+   framework to run forward passes is unjustified.
+2. **Testability.** Each step is separately verifiable, and is separately tested:
+   that greedy k-center actually preserves rare clusters where random sampling
+   drops them; that the JL projection holds distances within bound; that the
+   neighbour reweighting behaves. A library call is a black box in an interview.
+3. **Defensibility.** "I used a library" and "I implemented the coreset selection
+   and can explain why k-center beats random sampling here" are different claims.
+
+The design decisions worth defending, all of them load-bearing:
+
+* **`layer2` + `layer3`, not `layer4`.** The deepest features are specialised to
+  ImageNet classification and discard the local texture that separates a scratch
+  from a highlight. The earliest are too generic and too expensive.
+* **3×3 neighbourhood aggregation.** A patch descriptor carries local context, so
+  small misalignment between query and bank does not register as anomalous.
+* **Greedy k-center over random subsampling.** Random sampling follows density
+  and drops rare-but-normal patches (a printed marking, a reflective edge),
+  which then fire as false defects. Measured in `tests/test_coreset.py`.
+* **Per-category threshold calibration.** Raw distances have no absolute scale —
+  they depend on that category's own memory bank. Thresholds are calibrated per
+  category on F1 and then normalised so 0.5 means "defective" everywhere, which
+  is what lets one risk policy serve all products.
 
 **Reported metrics.** Image-level AUROC, pixel-level AUROC, and PRO score — the metrics
 MVTec AD is actually benchmarked with, allowing direct comparison against published
@@ -159,7 +188,7 @@ remembering to log itself.
 
 | Layer | Metrics | Method |
 |---|---|---|
-| Detection | Image AUROC, pixel AUROC, PRO, latency | All 15 MVTec AD categories, compared against published PatchCore/EfficientAD numbers |
+| Detection | Image AUROC, pixel AUROC, PRO, latency | All 15 MVTec AD categories, compared against published PatchCore numbers |
 | Retrieval | precision@k, recall@k, MRR | Labelled query set over the defect-history corpus |
 | Analysis | Citation grounding rate, risk-level agreement | Does the analysis cite real retrieved cases; does its risk level agree with a human-labelled subset |
 | End-to-end | Wall-clock latency per stage, throughput | Per-node timing already carried in the state |
