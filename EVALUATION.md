@@ -362,7 +362,57 @@ will be blocked in a future release. MAVIA passes an explicit allowlist of its
 own state types instead. This keeps checkpoints loadable across upgrades and
 means a checkpoint database cannot smuggle an arbitrary class past the loader.
 
-## 5. Governance
+## 5. QA report generation
+
+**Reproduce:** any `mavia inspect` run writes to `artifacts/reports/`.
+
+Three formats per inspection: Markdown (repo, dashboard), styled HTML, and PDF
+(audit binder). A real run produces ~3.9 KB of Markdown and a 40 KB PDF.
+
+### 5.1 Templated, not generated
+
+The report is rendered from a fixed template that quotes the Phase 4 analysis
+fields verbatim. Handing the whole inspection to an LLM and asking for prose
+would be easier and worse: an audited quality document needs the same sections in
+the same order on every part, so a reviewer can find the verdict without reading
+and two reports are diffable. Nothing in the template invents content, which is
+also why the report cannot hallucinate.
+
+### 5.2 The audit chain travels with the document
+
+Every report embeds the full event sequence for its inspection plus the SHA-256
+chain head at time of writing:
+
+```
+| Seq | Timestamp | Agent              | Action             | Entry hash          |
+| 0   | 04:48:37  | pipeline           | inspection_started | 8b0c79a441f0f0b5... |
+| 7   | 04:48:57  | approval_gate      | approval_approved  | 7f8264f8fb05dd38... |
+| 8   | 04:48:57  | report_writer      | started            | 6bc70f07943c9be5... |
+
+Chain head at time of writing: 6bc70f07943c9be538ff767c657f9e68...
+```
+
+A reader can re-derive the chain from the log and confirm the document describes
+what the system actually did, rather than trusting the PDF. Writing the report is
+itself audited, and the audit entry records the chain head it was bound to.
+
+### 5.3 Ordering
+
+The report node runs **after** the approval gate, not before. A QA record must
+state what a human decided, not merely what the model proposed — so a suspended
+inspection has no report until the decision is made.
+
+### 5.4 Degradation and escaping
+
+| Property | Behaviour |
+|---|---|
+| WeasyPrint/pango missing | Falls back to styled HTML, logs a warning, inspection completes |
+| macOS Homebrew library path | Set programmatically before import, so `brew install pango` is sufficient with no env var |
+| LLM text in the document | HTML-escaped — analysis text is model output and must not inject markup (tested) |
+
+---
+
+## 6. Governance
 
 | Property | Result |
 |---|---|

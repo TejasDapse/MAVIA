@@ -5,7 +5,7 @@
 > reasons about root cause with an LLM, escalates high-risk calls to a human, and
 > writes every decision into a tamper-evident SHA-256 hash chain.
 
-**Status:** Phase 5 of 8 complete — the full agent loop runs end to end, with a durable human-approval interrupt that survives process restarts. See [Roadmap](#roadmap).
+**Status:** Phase 6 of 8 complete — the full agent loop runs end to end and files a signed QA report with its audit chain embedded. See [Roadmap](#roadmap).
 
 ---
 
@@ -133,6 +133,10 @@ uv run mavia approve <id> --approver you@plant --rationale "confirmed"
 uv run mavia audit verify                 # prove the trail is intact
 ```
 
+Each completed inspection writes a QA report to `artifacts/reports/` as
+Markdown, HTML and PDF, with the full SHA-256 audit chain embedded in the
+document.
+
 High-risk inspections **pause** and persist. The process can exit; approve
 minutes later from a different process and the graph resumes where it stopped.
 
@@ -170,7 +174,7 @@ src/mavia/
   cli.py             # `mavia doctor`, `mavia audit verify|show`
   vision/            # PatchCore, coreset, metrics, CLIP fallback, inspector
   memory/            # knowledge base, corpus, Qdrant store, retrieval agent
-  agents/            # root cause analyst (+ report writer in Phase 6)
+  agents/            # root cause analyst, report writer
   orchestrator/      # LangGraph graph, risk routing, HITL interrupt
   dashboard/         # Phase 7 — Streamlit app
 scripts/             # dataset download, index seeding, training entrypoints
@@ -232,8 +236,8 @@ why, plus the coreset and PRO ablations: [EVALUATION.md](EVALUATION.md).
 | 3 | Defect-history corpus, Qdrant store, retrieval agent + retrieval eval | ✅ done |
 | 4 | Root Cause Analyst on Claude, structured output, prompt evaluation | ✅ done |
 | 5 | LangGraph orchestration, HITL interrupt, durable checkpoints | ✅ done |
-| 6 | Report Writer (Markdown → PDF), full audit integration | next |
-| 7 | Streamlit dashboard, Docker, demo video | |
+| 6 | Report Writer (Markdown → PDF), full audit integration | ✅ done |
+| 7 | Streamlit dashboard, Docker, demo video | next |
 | 8 | End-to-end evaluation, written report, deployment | |
 
 ## License

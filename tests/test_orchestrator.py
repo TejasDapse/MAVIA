@@ -265,8 +265,16 @@ def test_every_stage_is_audited(tmp_path: Path) -> None:
 
     assert actions[0] == "inspection_started"
     assert actions[-1] == "finalised"
-    assert actions.count("completed") == 3, "vision, retrieval and analysis must each complete"
-    assert {"vision_inspector", "history_retriever", "root_cause_analyst"} <= agents
+    assert actions.count("completed") == 4, (
+        "vision, retrieval, analysis and report must each complete"
+    )
+    assert {
+        "vision_inspector",
+        "history_retriever",
+        "root_cause_analyst",
+        "report_writer",
+    } <= agents
+    assert "report_written" in actions, "the QA record must be produced and audited"
 
 
 def test_approval_decision_is_audited(tmp_path: Path) -> None:

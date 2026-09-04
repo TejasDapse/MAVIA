@@ -41,6 +41,7 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.types import interrupt
 
 from mavia.agents.analyst import RootCauseAnalyst
+from mavia.agents.report import ReportWriter
 from mavia.audit import AuditLogger
 from mavia.config import Settings, get_settings
 from mavia.logging_setup import get_logger
@@ -113,6 +114,7 @@ class InspectionPipeline:
         inspector: VisionInspector | None = None,
         retriever: HistoryRetriever | None = None,
         analyst: RootCauseAnalyst | None = None,
+        reporter: ReportWriter | None = None,
         audit: AuditLogger | None = None,
         checkpointer: Any | None = None,
     ) -> None:
@@ -123,6 +125,7 @@ class InspectionPipeline:
         self.retriever = retriever or HistoryRetriever(settings=self.settings)
         self.analyst = analyst or RootCauseAnalyst(settings=self.settings)
         self.audit = audit or AuditLogger(self.settings.audit_log_path)
+        self.reporter = reporter or ReportWriter(settings=self.settings, audit=self.audit)
 
         self._connection: sqlite3.Connection | None = None
         if checkpointer is None:
@@ -274,6 +277,11 @@ class InspectionPipeline:
             )
         }
 
+    def _report(self, state: InspectionState) -> dict[str, Any]:
+        """Write the QA record. Runs after the approval decision so the report
+        can state what a human decided, not merely what the model proposed."""
+        return {"report": self.reporter.write(state)}
+
     def _finalise(self, state: InspectionState) -> dict[str, Any]:
         elapsed = (utc_now() - state.created_at).total_seconds() * 1000.0
         self.audit.log(
@@ -283,6 +291,7 @@ class InspectionPipeline:
             payload={
                 "verdict": state.final_verdict.value,
                 "approval": state.approval.status.value,
+                "report_id": state.report.report_id if state.report else None,
                 "total_latency_ms": round(elapsed, 2),
                 "errors": state.errors,
             },
@@ -322,6 +331,7 @@ class InspectionPipeline:
         _add_node(graph, "analyse", self._audited(AgentName.ANALYST, self._analyse))
         _add_node(graph, "approval_gate", self._approval_gate)
         _add_node(graph, "auto_approve", self._auto_approve)
+        _add_node(graph, "report", self._audited(AgentName.REPORTER, self._report))
         _add_node(graph, "finalise", self._finalise)
 
         graph.add_edge(START, "inspect")
@@ -332,8 +342,9 @@ class InspectionPipeline:
             self._route,
             {"approval_gate": "approval_gate", "auto_approve": "auto_approve"},
         )
-        graph.add_edge("approval_gate", "finalise")
-        graph.add_edge("auto_approve", "finalise")
+        graph.add_edge("approval_gate", "report")
+        graph.add_edge("auto_approve", "report")
+        graph.add_edge("report", "finalise")
         graph.add_edge("finalise", END)
         return graph
 

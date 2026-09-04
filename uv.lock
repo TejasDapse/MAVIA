@@ -1609,15 +1609,6 @@ wheels = [
 ]
 
 [[package]]
-name = "markdown"
-version = "3.10.3"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/29/6f/da4c6aea59b3001f2e8c0ec7497475aadaf3b021c10cab5b2858f0f32b26/markdown-3.10.3.tar.gz", hash = "sha256:3589362618f743188b4d955b874402bc814f4f83f544dc207719f4baa7d9c45f", size = 372596, upload-time = "2026-07-30T19:05:29.005Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/64/69/4a5af2bc115a9a33fefe51709749de8262be3f9ba063d1753a837cdbc49c/markdown-3.10.3-py3-none-any.whl", hash = "sha256:fa6c92a00a4a3c98b22728c64a935ae1928250ae65058a6ded814d2cc29a4cea", size = 110757, upload-time = "2026-07-30T19:05:27.883Z" },
-]
-
-[[package]]
 name = "markdown-it-py"
 version = "4.2.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1736,13 +1727,11 @@ agents = [
 ]
 all = [
     { name = "anthropic" },
-    { name = "jinja2" },
     { name = "jupyter" },
     { name = "langchain-core" },
     { name = "langgraph" },
     { name = "langgraph-checkpoint-sqlite" },
     { name = "langsmith" },
-    { name = "markdown" },
     { name = "matplotlib" },
     { name = "open-clip-torch" },
     { name = "opencv-python-headless" },
@@ -1775,8 +1764,6 @@ memory = [
     { name = "sentence-transformers" },
 ]
 report = [
-    { name = "jinja2" },
-    { name = "markdown" },
     { name = "weasyprint" },
 ]
 vision = [
@@ -1804,13 +1791,11 @@ dev = [
 requires-dist = [
     { name = "anthropic", marker = "extra == 'agents'", specifier = ">=0.42" },
     { name = "huggingface-hub", specifier = ">=0.26" },
-    { name = "jinja2", marker = "extra == 'report'", specifier = ">=3.1" },
     { name = "jupyter", marker = "extra == 'eval'", specifier = ">=1.1" },
     { name = "langchain-core", marker = "extra == 'agents'", specifier = ">=0.3" },
     { name = "langgraph", marker = "extra == 'agents'", specifier = ">=0.2.60" },
     { name = "langgraph-checkpoint-sqlite", marker = "extra == 'agents'", specifier = ">=2.0" },
     { name = "langsmith", marker = "extra == 'agents'", specifier = ">=0.2" },
-    { name = "markdown", marker = "extra == 'report'", specifier = ">=3.7" },
     { name = "matplotlib", marker = "extra == 'eval'", specifier = ">=3.9" },
     { name = "mavia", extras = ["vision", "memory", "agents", "report", "dashboard", "eval"], marker = "extra == 'all'" },
     { name = "numpy", specifier = ">=1.26" },
