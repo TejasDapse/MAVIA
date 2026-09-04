@@ -463,9 +463,30 @@ Dataset and fitted memory banks are mounted read-only rather than baked in.
 MVTec AD is 4.9 GB and CC BY-NC-SA licensed, so redistributing it inside an image
 would be both impractical and a licence breach.
 
-**Not yet verified by a build.** Docker is not installed on the development
-machine, so the Dockerfile and compose file are written but unbuilt. Stated here
-rather than implied to work.
+### 7.1 Verified
+
+Built and run on Apple Silicon (Docker Desktop 29.7.2, native `linux/aarch64` —
+no Rosetta, since `torch 2.14.0+cpu` ships `manylinux_2_28_aarch64` wheels).
+
+| Check | Result |
+|---|---|
+| Image size | **3.28 GB** (mostly PyTorch) |
+| Build | Clean on first attempt |
+| Container healthcheck | `healthy` within seconds |
+| `mavia doctor` in container | Dataset, models, vector store, audit log all resolved |
+| Full inspection in container | `leather/cut` → FAIL, score 0.709, 3 cases retrieved, 24.6 s cold |
+| PDF rendering on Linux | **22 KB PDF produced** — the pango/cairo package set is correct |
+| File ownership | `mavia:mavia` — the non-root user is real, not decorative |
+| Audit chain across host + container | **45 entries verified intact** |
+
+That last row is the interesting one. The audit log is a mounted volume, so the
+hash chain spans entries written by the host CLI *and* entries written inside the
+container, and `verify_chain` accepts the whole sequence. The governance property
+holds across the process boundary, not just within one runtime.
+
+Cold-start latency is 24.6 s because the container downloads WideResNet-50
+weights on first use. `TORCH_HOME` and `HF_HOME` point into the mounted
+`artifacts/` volume, so that cost is paid once rather than per container start.
 
 ---
 

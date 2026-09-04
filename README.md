@@ -159,6 +159,10 @@ docker compose up --build
 The dataset and fitted memory banks are mounted read-only rather than baked in —
 MVTec AD is 4.9 GB and CC BY-NC-SA, so it is not redistributable.
 
+Verified on `linux/aarch64`: 3.28 GB image, healthy container, full inspection
+and PDF report generated inside it, and the audit chain verifies across entries
+written by both the host and the container.
+
 High-risk inspections **pause** and persist. The process can exit; approve
 minutes later from a different process and the graph resumes where it stopped.
 
