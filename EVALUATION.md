@@ -412,7 +412,64 @@ inspection has no report until the decision is made.
 
 ---
 
-## 6. Governance
+## 6. Dashboard
+
+**Reproduce:** `make dashboard` → http://localhost:8501
+
+### 6.1 Logic lives outside the UI
+
+Streamlit re-executes its entire script on every widget interaction, which makes
+UI code a poor place for logic and an impossible place to test. All of it lives
+in `dashboard/service.py` — plain functions over the audit log — and `app.py` is
+a rendering layer. 15 unit tests cover the service; the UI is covered by a
+headless smoke test that executes all four views via `streamlit.testing.v1` and
+asserts zero page exceptions.
+
+That harness earned its place immediately: it caught that `use_container_width`
+was deprecated past 2025-12-31 (silently still working, but on borrowed time).
+
+### 6.2 The dashboard reads only the audit log
+
+Inspection history is reconstructed **entirely** from audit events — verdict,
+risk, approver, latency, errors, report id. Nothing else is consulted.
+
+This is a deliberate test of the audit trail itself: if the log cannot rebuild
+what happened, the log is not a complete record, and
+`test_inspection_is_reconstructed_from_the_audit_log_alone` fails. Using a second
+store would have hidden that weakness.
+
+The checkpoint database remains the source of truth for what is still *waiting*,
+because that is state, not history.
+
+### 6.3 Chain status is surfaced, not buried
+
+The sidebar shows live chain verification on every page load, and a broken chain
+renders as a red error naming the failing sequence number rather than quietly
+displaying stale data (`test_chain_status_reports_tampering`).
+
+---
+
+## 7. Packaging
+
+Multi-stage Dockerfile: dependencies resolve from the lockfile in a builder
+layer, and only the resulting virtualenv is copied into a slim runtime — the
+image ships no uv, no build toolchain, no package cache. Runs as a non-root user
+with a healthcheck on Streamlit's `/_stcore/health`.
+
+System libraries are installed for the two things that need them: pango/cairo
+for WeasyPrint PDFs, libgl/glib for OpenCV.
+
+Dataset and fitted memory banks are mounted read-only rather than baked in.
+MVTec AD is 4.9 GB and CC BY-NC-SA licensed, so redistributing it inside an image
+would be both impractical and a licence breach.
+
+**Not yet verified by a build.** Docker is not installed on the development
+machine, so the Dockerfile and compose file are written but unbuilt. Stated here
+rather than implied to work.
+
+---
+
+## 8. Governance
 
 | Property | Result |
 |---|---|

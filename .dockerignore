@@ -1,0 +1,18 @@
+# Keep the build context small — the dataset alone is ~4.9 GB.
+data/
+models/
+artifacts/
+.venv/
+.git/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+__pycache__/
+*.pyc
+notebooks/
+evaluation/
+tests/
+.env
+.env.local
+*.sqlite
+*.jsonl

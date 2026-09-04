@@ -1,4 +1,4 @@
-.PHONY: help install install-all sync lint fmt type test cov clean data doctor
+.PHONY: help install install-all sync lint fmt type test cov clean data doctor dashboard memory docker docker-run
 
 help:
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
@@ -27,6 +27,22 @@ cov: ## Tests with coverage report
 
 data: ## Download MVTec AD into data/mvtec_ad
 	uv run python scripts/download_mvtec.py
+
+dashboard: ## Launch the Streamlit operations dashboard
+	uv run streamlit run src/mavia/dashboard/app.py
+
+memory: ## Build and index the defect-history corpus
+	uv run python scripts/build_memory.py --recreate
+
+docker: ## Build the container image
+	docker build -f docker/Dockerfile -t mavia:latest .
+
+docker-run: ## Run the dashboard in Docker (mounts data, models, artifacts)
+	docker run --rm -p 8501:8501 \
+		-v "$$PWD/data:/app/data:ro" \
+		-v "$$PWD/models:/app/models:ro" \
+		-v "$$PWD/artifacts:/app/artifacts" \
+		--env-file .env mavia:latest
 
 doctor: ## Show which parts of the stack are configured
 	uv run mavia doctor

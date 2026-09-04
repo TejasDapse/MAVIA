@@ -5,7 +5,7 @@
 > reasons about root cause with an LLM, escalates high-risk calls to a human, and
 > writes every decision into a tamper-evident SHA-256 hash chain.
 
-**Status:** Phase 6 of 8 complete — the full agent loop runs end to end and files a signed QA report with its audit chain embedded. See [Roadmap](#roadmap).
+**Status:** Phase 7 of 8 complete — full agent loop, QA reports with embedded audit chain, operations dashboard, and a container image. See [Roadmap](#roadmap).
 
 ---
 
@@ -137,6 +137,28 @@ Each completed inspection writes a QA report to `artifacts/reports/` as
 Markdown, HTML and PDF, with the full SHA-256 audit chain embedded in the
 document.
 
+### Dashboard
+
+```bash
+make dashboard        # http://localhost:8501
+```
+
+Four views: **Inspect** (run a unit, see the heatmap), **Approval queue**
+(escalated inspections shown with their overlay so a reviewer can see the defect
+before deciding), **History** (every inspection, rebuilt from the audit log
+alone), and **Audit trail** (live chain verification).
+
+### Container
+
+```bash
+make docker           # build
+make docker-run       # run the dashboard on :8501
+docker compose up --build
+```
+
+The dataset and fitted memory banks are mounted read-only rather than baked in —
+MVTec AD is 4.9 GB and CC BY-NC-SA, so it is not redistributable.
+
 High-risk inspections **pause** and persist. The process can exit; approve
 minutes later from a different process and the graph resumes where it stopped.
 
@@ -176,7 +198,7 @@ src/mavia/
   memory/            # knowledge base, corpus, Qdrant store, retrieval agent
   agents/            # root cause analyst, report writer
   orchestrator/      # LangGraph graph, risk routing, HITL interrupt
-  dashboard/         # Phase 7 — Streamlit app
+  dashboard/         # Streamlit app + testable service layer
 scripts/             # dataset download, index seeding, training entrypoints
 notebooks/           # EDA + Colab training notebooks
 evaluation/          # detection / retrieval / end-to-end benchmarks
@@ -237,8 +259,8 @@ why, plus the coreset and PRO ablations: [EVALUATION.md](EVALUATION.md).
 | 4 | Root Cause Analyst on Claude, structured output, prompt evaluation | ✅ done |
 | 5 | LangGraph orchestration, HITL interrupt, durable checkpoints | ✅ done |
 | 6 | Report Writer (Markdown → PDF), full audit integration | ✅ done |
-| 7 | Streamlit dashboard, Docker, demo video | next |
-| 8 | End-to-end evaluation, written report, deployment | |
+| 7 | Streamlit dashboard, Docker packaging | ✅ done |
+| 8 | Final report, demo video, deploy, flip repo public | next |
 
 ## License
 

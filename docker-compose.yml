@@ -1,0 +1,41 @@
+# MAVIA - local stack.
+#
+#   docker compose up --build          dashboard only (embedded on-disk Qdrant)
+#   docker compose --profile server up  with a standalone Qdrant server
+#
+# Dataset and fitted memory banks are mounted read-only from the host rather than
+# baked into the image: MVTec AD is ~4.9 GB and CC BY-NC-SA licensed, so it is
+# not redistributable, and the memory banks are reproducible from it.
+
+services:
+  mavia:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    image: mavia:latest
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./data:/app/data:ro
+      - ./models:/app/models:ro
+      - ./artifacts:/app/artifacts
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      # Point at the Qdrant service when the `server` profile is active;
+      # otherwise the embedded on-disk store under artifacts/ is used.
+      MAVIA_QDRANT_URL: ${MAVIA_QDRANT_URL:-}
+    restart: unless-stopped
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    profiles: ["server"]
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrant_storage:/qdrant/storage
+    restart: unless-stopped
+
+volumes:
+  qdrant_storage:
