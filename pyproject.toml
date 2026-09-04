@@ -46,6 +46,9 @@ agents = [
 # writer degrades to HTML when it is absent.
 report = [
     "weasyprint>=63.0",
+    # Only used by scripts/build_report.py to typeset REPORT.md; the QA report
+    # templates themselves are hand-written and need no templating engine.
+    "markdown>=3.7",
 ]
 dashboard = [
     "streamlit>=1.41",

@@ -5,9 +5,25 @@
 > reasons about root cause with an LLM, escalates high-risk calls to a human, and
 > writes every decision into a tamper-evident SHA-256 hash chain.
 
-**Status:** Phase 7 of 8 complete — full agent loop, QA reports with embedded audit chain, operations dashboard, and a container image. See [Roadmap](#roadmap).
+**Status:** Complete — all 8 phases delivered. [Final report (PDF)](REPORT.pdf) · [Evaluation](EVALUATION.md) · [Architecture](ARCHITECTURE.md)
 
 ---
+
+## Headline results
+
+| | Measured | Reference |
+|---|---|---|
+| Detection, mean image AUROC (15 categories) | **0.9868** | 0.991 (Roth et al. 2022) |
+| Detection, mean pixel AUROC | **0.9767** | 0.981 |
+| Detection latency | **35.5 ms/image** | — |
+| Retrieval precision@3 (hybrid) | **0.4548** | **ceiling 0.449**, chance 0.217 |
+| Citation grounding rate | **1.000** | — |
+| Risk decisions changed without history | **76%** | — |
+| Approval survives process restart | **verified across 3 processes** | — |
+| Audit chain integrity (host + container) | **45/45 entries** | — |
+
+Every figure is reproducible; [EVALUATION.md](EVALUATION.md) names the command
+for each and documents two evaluation bugs the ceiling analysis caught.
 
 ## Problem Statement
 
@@ -263,8 +279,8 @@ why, plus the coreset and PRO ablations: [EVALUATION.md](EVALUATION.md).
 | 4 | Root Cause Analyst on Claude, structured output, prompt evaluation | ✅ done |
 | 5 | LangGraph orchestration, HITL interrupt, durable checkpoints | ✅ done |
 | 6 | Report Writer (Markdown → PDF), full audit integration | ✅ done |
-| 7 | Streamlit dashboard, Docker packaging | ✅ done |
-| 8 | Final report, demo video, deploy, flip repo public | next |
+| 7 | Streamlit dashboard, Docker packaging (built & verified) | ✅ done |
+| 8 | Final report, demo script, packaging verification | ✅ done |
 
 ## License
 

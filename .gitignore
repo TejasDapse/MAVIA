@@ -38,3 +38,6 @@ audit_log.jsonl
 .DS_Store
 .idea/
 .vscode/
+
+# Generated from REPORT.md by scripts/build_report.py
+REPORT.html
